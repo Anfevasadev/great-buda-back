@@ -1,15 +1,20 @@
-import express from 'express';  
-import bodyParser from 'body-parser';
+import express from 'express';
+import cors from 'cors';
 import userRoutes from './routes/userRoutes.js';
-
+import authRoutes from './routes/authRoutes.js';
 
 const app = express();
 
-app.use(bodyParser.json());
-app.use('/api', userRoutes);
+app.use(cors());
+app.use(express.json());
+app.use('/api/users', userRoutes);
+app.use('/api/auth', authRoutes);
 
-app.get('/', (req, res) => {
-  res.send('¡Servidor Express está corriendo!');
+
+const port = process.env.PORT || 3001;
+
+app.listen(port, () => {
+  console.log(`Servidor escuchando en http://localhost:${port}`);
 });
 
-export default app; 
+export default app;
