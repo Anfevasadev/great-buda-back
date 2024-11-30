@@ -3,3 +3,9 @@ services:
     build: databases/auth-db
     ports:
       - "5432:5432"
+  auth-ms:
+    build: auth-ms
+    ports:
+      - "3000:3000"
+    depends_on:
+      - users-db
