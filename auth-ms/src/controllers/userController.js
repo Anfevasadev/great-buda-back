@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import User from '../models/user.js';
+import { body, validationResult } from 'express-validator';
 
 export const getAllUsers = async (req, res) => {
   try {
@@ -25,23 +26,36 @@ export const getUserById = async (req, res) => {
   }
 };
 
-export const createUser = async (req, res) => {
-  const { username, name, age, email, password, role } = req.body;
+export const createUser = [
+  body('username').isString().notEmpty(),
+  body('name').isString().notEmpty(),
+  body('age').isInt({ min: 18 }),
+  body('email').isEmail(),
+  body('password').isLength({ min: 8 }),
+  body('role').isIn(['admin', 'user']),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const { username, name, age, email, password, role } = req.body;
 
-    const newUser = await User.create({
-      username,
-      name,
-      age,
-      email,
-      password_hash: hashedPassword,
-      role
-    });
+    try {
+      const hashedPassword = await bcrypt.hash(password, 10);
 
-    res.status(201).json({ message: 'Usuario creado exitosamente', user: newUser });
-  } catch (error) {
-    res.status(500).json({ message: 'Error al crear usuario', error });
+      const newUser = await User.create({
+        username,
+        name,
+        age,
+        email,
+        password_hash: hashedPassword,
+        role
+      });
+
+      res.status(201).json({ message: 'Usuario creado exitosamente', user: newUser });
+    } catch (error) {
+      res.status(500).json({ message: 'Error al crear usuario', error });
+    }
   }
-};
+];
