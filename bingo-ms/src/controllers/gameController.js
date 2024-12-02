@@ -3,7 +3,7 @@ import Player from '../models/player.js';
 import { io } from '../sockets/websockets.js'; 
 
 const MIN_WAIT_TIME = 5; // Tiempo mínimo de espera en segundos
-const MAX_WAIT_TIME = 10; // Tiempo máximo de espera en segundos
+const MAX_WAIT_TIME = 20; // Tiempo máximo de espera en segundos
 
 export const createOrGetActiveGame = async (req, res) => {
   try {
@@ -15,7 +15,13 @@ export const createOrGetActiveGame = async (req, res) => {
       let elapsedTime = 0;
       const interval = setInterval(async () => {
         elapsedTime += 1;
+
+        const activePlayers = await Player.count({ where: { game_id: game.id } });
+        game.active_players = activePlayers;
+        await game.save();
+
         io.to(game.id).emit('waitingTime', { waitingTime: elapsedTime, roomID: game.id, activePlayers: game.active_players });
+        io.to(game.id).emit('updatePlayers', { roomID: game.id, activePlayers: game.active_players });
 
         // Verificar si se ha alcanzado el tiempo máximo de espera
         if (elapsedTime >= MAX_WAIT_TIME) {
@@ -24,8 +30,7 @@ export const createOrGetActiveGame = async (req, res) => {
             game.status = 'finished';
             await game.save();
             io.to(game.id).emit('closeRoom', { message: 'La sala se ha cerrado por falta de jugadores', roomID: game.id });
-            await Player.destroy({ where: { game_id: game.id } }); 
-            await Game.destroy({ where: { id: game.id } }); 
+            await Game.destroy({ where: { id: game.id } }); // Eliminar la sala de la base de datos
           } else {
             io.to(game.id).emit('startGame', { message: 'El juego va a comenzar', roomID: game.id });
           }
