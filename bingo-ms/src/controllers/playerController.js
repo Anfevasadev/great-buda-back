@@ -1,8 +1,37 @@
 import jwt from 'jsonwebtoken';
 import Game from '../models/game.js';
 import Player from '../models/player.js';
+import BingoCard from '../models/bingoCard.js'; // Asegúrate de tener el modelo BingoCard
 
 class PlayerController {
+  generateBingoCard() {
+    const card = [];
+    const columns = ['B', 'I', 'N', 'G', 'O'];
+    const columnRanges = {
+      B: [1, 15],
+      I: [16, 30],
+      N: [31, 45],
+      G: [46, 60],
+      O: [61, 75]
+    };
+
+    columns.forEach((column, index) => {
+      const [min, max] = columnRanges[column];
+      const numbers = [];
+      while (numbers.length < 5) {
+        const num = Math.floor(Math.random() * (max - min + 1)) + min;
+        if (!numbers.includes(num)) {
+          numbers.push(num);
+        }
+      }
+      card.push(numbers);
+    });
+
+    card[2][2] = 'FREE';
+
+    return card;
+  }
+
   async joinRoom(socket, { roomID, token }) {
     try {
       if (!token) {
@@ -19,6 +48,9 @@ class PlayerController {
         return;
       }
       socket.emit('waitingTime', { waitingTime: 0, roomID: game.id, activePlayers: game.active_players });
+      const bingoCard = this.generateBingoCard();
+      await BingoCard.create({ player_id: player.id, numbers: bingoCard });
+      socket.emit('bingoCard', { playerId: player.id,bingoCard: bingoCard });
 
       const existingPlayer = await Player.findOne({ where: { game_id: roomID, user_id } });
       if (existingPlayer) {
@@ -31,8 +63,10 @@ class PlayerController {
       game.active_players += 1;
       await game.save();
 
+
       socket.join(roomID);
       socket.to(roomID).emit('updatePlayers', { roomID: game.id, activePlayers: game.active_players });
+
 
     } catch (error) {
       console.error('Error al unirse al juego:', error);

@@ -1,3 +1,4 @@
+import BingoCard from '../models/bingoCard.js';
 import Game from '../models/game.js';
 import Player from '../models/player.js';
 import { io } from '../sockets/websockets.js'; 
@@ -27,9 +28,9 @@ export const createOrGetActiveGame = async (req, res) => {
         if (elapsedTime >= MAX_WAIT_TIME) {
           clearInterval(interval);
           if (game.active_players < 2) {
-            game.status = 'finished';
-            await game.save();
             io.to(game.id).emit('closeRoom', { message: 'La sala se ha cerrado por falta de jugadores', roomID: game.id });
+            // await BingoCard.destroy({ where: { game_id: game.id } }); // Eliminar las cartas de bingo de la base de datos
+            await Player.destroy({ where: { game_id: game.id } }); // Eliminar los jugadores de la base de datos
             await Game.destroy({ where: { id: game.id } }); // Eliminar la sala de la base de datos
           } else {
             io.to(game.id).emit('startGame', { message: 'El juego va a comenzar', roomID: game.id });
