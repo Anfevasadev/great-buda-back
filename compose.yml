@@ -9,3 +9,13 @@ services:
       - "3000:3000"
     depends_on:
       - users-db
+  bingo-db:
+    build: databases/bingo-db
+    ports:
+      - "5433:5432"
+  bingo-ms:
+    build: bingo-ms
+    ports:
+      - "3001:3001"
+    depends_on:
+      - bingo-db
