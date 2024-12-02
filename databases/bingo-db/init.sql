@@ -6,7 +6,8 @@ CREATE TABLE games (
     winner_id UUID REFERENCES players(id),
     created_at TIMESTAMP DEFAULT NOW(),
     started_at TIMESTAMP,
-    ended_at TIMESTAMP
+    ended_at TIMESTAMP,
+    active_players INTEGER DEFAULT 0
 );
 
 CREATE TABLE players (

@@ -5,7 +5,7 @@ export const createOrGetActiveGame = async (req, res) => {
     let game = await Game.findOne({ where: { status: 'waiting' } });
 
     if (!game) {
-      game = await Game.create({ status: 'waiting' });
+      game = await Game.create({ status: 'waiting' , active_players: 0 });
     }
 
     res.status(200).json(game);

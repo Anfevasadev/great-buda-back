@@ -30,6 +30,10 @@ const Game = sequelize.define('Game', {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  active_players: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
 });
 
 try {
