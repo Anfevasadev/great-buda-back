@@ -1,8 +1,10 @@
 import { Server } from 'socket.io';
 import playerController from '../controllers/playerController.js';
 
+let io;
+
 function setupWebSocket(server) {
-  const io = new Server(server, {
+  io = new Server(server, {
     cors: {
       origin: '*',
     },
@@ -20,4 +22,5 @@ function setupWebSocket(server) {
   return io;
 }
 
+export { io };
 export default setupWebSocket;

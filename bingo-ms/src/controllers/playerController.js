@@ -18,10 +18,11 @@ class PlayerController {
         socket.emit('error', { message: 'Juego no encontrado o no está en estado de espera' });
         return;
       }
+      socket.emit('waitingTime', { waitingTime: 0, roomID: game.id, activePlayers: game.active_players });
 
       const existingPlayer = await Player.findOne({ where: { game_id: roomID, user_id } });
       if (existingPlayer) {
-        socket.emit('updatePlayers', { roomID: game.game_id, active_players: game.active_players });
+        socket.emit('updatePlayers', { roomID: game.id, activePlayers: game.active_players });
         socket.emit('error', { message: 'El jugador ya está en el juego' });
         return;
       }
@@ -31,13 +32,13 @@ class PlayerController {
       await game.save();
 
       socket.join(roomID);
-      io.to(roomID).emit('updatePlayers', { roomID: game.game_id, active_players: game.active_players });
+      socket.to(roomID).emit('updatePlayers', { roomID: game.id, activePlayers: game.active_players });
+
     } catch (error) {
       console.error('Error al unirse al juego:', error);
       socket.emit('error', { message: 'Error al unirse al juego', error });
     }
   }
-
 }
 
 export default new PlayerController();
