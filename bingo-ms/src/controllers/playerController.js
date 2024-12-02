@@ -1,32 +1,43 @@
-import Player from '../models/player.js';
+import jwt from 'jsonwebtoken';
 import Game from '../models/game.js';
+import Player from '../models/player.js';
 
-export const joinGame = async (req, res) => {
-  const { game_id } = req.body;
-  const user_id = req.user.id;
+class PlayerController {
+  async joinRoom(socket, { roomID, token }) {
+    try {
+      if (!token) {
+        socket.emit('error', { message: 'Token no proporcionado' });
+        return;
+      }
 
-  if (!game_id) {
-    return res.status(400).json({ message: 'game_id es requerido' });
-  }
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user_id = decoded.id;
 
-  if (!user_id) {
-    return res.status(400).json({ message: 'user_id es requerido' });
-  }
+      const game = await Game.findOne({ where: { id: roomID, status: 'waiting' } });
+      if (!game) {
+        socket.emit('error', { message: 'Juego no encontrado o no está en estado de espera' });
+        return;
+      }
 
-  try {
-    const game = await Game.findOne({ where: { id: game_id, status: 'waiting' } });
-    if (!game) {
-      return res.status(404).json({ message: 'Juego no encontrado o no está en estado de espera' });
+      const existingPlayer = await Player.findOne({ where: { game_id: roomID, user_id } });
+      if (existingPlayer) {
+        socket.emit('updatePlayers', { roomID: game.game_id, active_players: game.active_players });
+        socket.emit('error', { message: 'El jugador ya está en el juego' });
+        return;
+      }
+
+      const player = await Player.create({ game_id: roomID, user_id });
+      game.active_players += 1;
+      await game.save();
+
+      socket.join(roomID);
+      io.to(roomID).emit('updatePlayers', { roomID: game.game_id, active_players: game.active_players });
+    } catch (error) {
+      console.error('Error al unirse al juego:', error);
+      socket.emit('error', { message: 'Error al unirse al juego', error });
     }
-
-    const existingPlayer = await Player.findOne({ where: { game_id, user_id } });
-    if (existingPlayer) {
-      return res.status(400).json({ message: 'El jugador ya está en el juego' });
-    }
-
-    const player = await Player.create({ game_id, user_id });
-    res.status(201).json(player);
-  } catch (error) {
-    res.status(500).json({ message: 'Error al unirse al juego', error });
   }
-};
+
+}
+
+export default new PlayerController();
