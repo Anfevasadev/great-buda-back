@@ -17,7 +17,7 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: 'Credenciales incorrectas' });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user.user_id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
     res.status(200).json({ token, user: filterUser(user) });
   } catch (error) {
     res.status(500).json({ message: 'Error al iniciar sesión', error });
@@ -39,7 +39,7 @@ export const register = async (req, res) => {
       role
     });
 
-    const token = jwt.sign({ id: newUser.id, role: newUser.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: newUser.user_id, role: newUser.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     res.status(201).json({ message: 'Usuario creado exitosamente', user: filterUser(newUser), token });
   } catch (error) {
