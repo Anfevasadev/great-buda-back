@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import Game from '../models/game.js';
 import Player from '../models/player.js';
-import BingoCard from '../models/bingoCard.js'; 
+import BingoCard from '../models/bingoCard.js';
 import { sendEventToAll } from '../sockets/websockets.js';
 import { Op } from 'sequelize';
 
@@ -50,23 +50,23 @@ class PlayerController {
         return;
       }
       socket.emit('waitingTime', { waitingTime: 0, roomID: game.id, activePlayers: game.active_players });
-      
+
       const existingPlayer = await Player.findOne({ where: { game_id: roomID, user_id } });
       if (existingPlayer) {
         const bingoCard = await BingoCard.findOne({ where: { player_id: existingPlayer.id } });
         socket.emit('updatePlayers', { roomID: game.id, activePlayers: game.active_players });
-        socket.emit('bingoCard', { userId: player.user_id, bingoCard:  bingoCard.numbers });
+        socket.emit('bingoCard', { userId: player.user_id, bingoCard: bingoCard.numbers });
         socket.emit('error', { message: 'El jugador ya está en el juego' });
         return;
       }
-      
+
       const player = await Player.create({ game_id: roomID, user_id });
       game.active_players += 1;
       await game.save();
-      
+
       const bingoCard = this.generateBingoCard();
       await BingoCard.create({ player_id: player.id, numbers: bingoCard });
-      socket.emit('bingoCard', { userId: player.user_id , bingoCard: bingoCard });
+      socket.emit('bingoCard', { userId: player.user_id, bingoCard: bingoCard });
 
       socket.join(roomID);
       socket.to(roomID).emit('updatePlayers', { roomID: game.id, activePlayers: game.active_players });
@@ -78,15 +78,15 @@ class PlayerController {
     }
   }
 
-  async playerLeft (socket, { userId, gameId }) {
-    
+  async playerLeft(socket, { userId, gameId }) {
+
     try {
       if (!userId) {
         socket.emit('error', { message: 'User id no proporcionado' });
         return;
       }
 
-      const player = await Player.findOne({ where: { game_id: gameId, user_id:userId } });
+      const player = await Player.findOne({ where: { game_id: gameId, user_id: userId } });
       if (!player) {
         socket.emit('error', { message: 'Jugador no encontrado en el juego' });
         return;
@@ -95,18 +95,16 @@ class PlayerController {
       await player.save();
 
       const game = await Game.findOne({ where: { id: gameId } });
-      const playersInGame = await Player.count({ where: { game_id: gameId, is_disqualified: {[Op.not]: true} } });
+      const playersInGame = await Player.count({ where: { game_id: gameId, is_disqualified: { [Op.not]: true } } });
       game.active_players = playersInGame;
       await game.save();
-      
+
       sendEventToAll('updatePlayers', { roomID: game.id, active_players: game.active_players });
 
       if (game.active_players === 1) {
         const winner = await Player.findOne({ where: { game_id: gameId, user_id: { [Op.not]: userId } } });
-        console.log('winner', winner);
-        
         await this.finishGame(game, winner.user_id);
-        sendEventToAll('gameFinished', { message: 'El juego ha terminado', winner_id: winner.user_id });
+        sendEventToAll('gameFinished', { message: 'Los demás jugadores se retiraron', winner_id: winner.user_id });
       }
 
     } catch (error) {
