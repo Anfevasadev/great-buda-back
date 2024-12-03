@@ -34,15 +34,13 @@ export const createOrGetActiveGame = async (req, res) => {
             await startGame(game);
           }
         }
-      }, 1000);
-
-      // Esperar mínimo 30 segundos antes de permitir que el juego comience
-      setTimeout(async () => {
         if (elapsedTime >= MIN_WAIT_TIME && game.active_players >= 2) {
-          await startGame(game);
-          clearInterval(interval);
+            await startGame(game);
+            clearInterval(interval);
         }
-      }, MIN_WAIT_TIME * 1000);
+      }, 1000);      
+      
+      
     }
 
     res.status(200).json(game);
