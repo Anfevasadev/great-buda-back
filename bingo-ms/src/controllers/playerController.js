@@ -48,21 +48,23 @@ class PlayerController {
         return;
       }
       socket.emit('waitingTime', { waitingTime: 0, roomID: game.id, activePlayers: game.active_players });
-      const bingoCard = this.generateBingoCard();
-      await BingoCard.create({ player_id: player.id, numbers: bingoCard });
-      socket.emit('bingoCard', { playerId: player.id,bingoCard: bingoCard });
-
+      
       const existingPlayer = await Player.findOne({ where: { game_id: roomID, user_id } });
       if (existingPlayer) {
+        const bingoCard = await BingoCard.findOne({ where: { player_id: existingPlayer.id } });
         socket.emit('updatePlayers', { roomID: game.id, activePlayers: game.active_players });
+        socket.emit('bingoCard', { userId: player.user_id, bingoCard:  bingoCard.numbers });
         socket.emit('error', { message: 'El jugador ya está en el juego' });
         return;
       }
-
+      
       const player = await Player.create({ game_id: roomID, user_id });
       game.active_players += 1;
       await game.save();
-
+      
+      const bingoCard = this.generateBingoCard();
+      await BingoCard.create({ player_id: player.id, numbers: bingoCard });
+      socket.emit('bingoCard', { userId: player.user_id , bingoCard: bingoCard });
 
       socket.join(roomID);
       socket.to(roomID).emit('updatePlayers', { roomID: game.id, activePlayers: game.active_players });

@@ -1,4 +1,3 @@
-import BingoCard from '../models/bingoCard.js';
 import Game from '../models/game.js';
 import Player from '../models/player.js';
 import { io } from '../sockets/websockets.js'; 
@@ -29,11 +28,10 @@ export const createOrGetActiveGame = async (req, res) => {
           clearInterval(interval);
           if (game.active_players < 2) {
             io.to(game.id).emit('closeRoom', { message: 'La sala se ha cerrado por falta de jugadores', roomID: game.id });
-            // await BingoCard.destroy({ where: { game_id: game.id } }); // Eliminar las cartas de bingo de la base de datos
             await Player.destroy({ where: { game_id: game.id } }); // Eliminar los jugadores de la base de datos
             await Game.destroy({ where: { id: game.id } }); // Eliminar la sala de la base de datos
           } else {
-            io.to(game.id).emit('startGame', { message: 'El juego va a comenzar', roomID: game.id });
+            await startGame(game);
           }
         }
       }, 1000);
@@ -41,7 +39,7 @@ export const createOrGetActiveGame = async (req, res) => {
       // Esperar mínimo 30 segundos antes de permitir que el juego comience
       setTimeout(async () => {
         if (elapsedTime >= MIN_WAIT_TIME && game.active_players >= 2) {
-          io.to(game.id).emit('startGame', { message: 'El juego va a comenzar', roomID: game.id });
+          await startGame(game);
           clearInterval(interval);
         }
       }, MIN_WAIT_TIME * 1000);
@@ -50,6 +48,16 @@ export const createOrGetActiveGame = async (req, res) => {
     res.status(200).json(game);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener o crear juego', error });
+  }
+};
+
+const startGame = async (game) => {
+  try {
+    game.status = 'in_progress';
+    await game.save();
+    io.to(game.id).emit('startGame', { message: 'El juego va a comenzar', roomID: game.id });
+  } catch (error) {
+    console.error('Error al iniciar el juego:', error);
   }
 };
 
