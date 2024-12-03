@@ -1,4 +1,4 @@
 export const filterUser = (user) => {
-  const { id, username, name, age, email } = user;
-  return { id, username, name, age, email };
+  const { user_id, username, name, age, email } = user;
+  return { id:user_id, username, name, age, email };
 };
