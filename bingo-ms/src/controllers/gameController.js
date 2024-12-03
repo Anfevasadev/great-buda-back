@@ -1,9 +1,13 @@
+import Ballot from '../models/ballot.js';
 import Game from '../models/game.js';
 import Player from '../models/player.js';
 import { io } from '../sockets/websockets.js'; 
 
 const MIN_WAIT_TIME = 5; // Tiempo mínimo de espera en segundos
 const MAX_WAIT_TIME = 20; // Tiempo máximo de espera en segundos
+
+const ballotIntervals = {};
+const sentBallots = {};
 
 export const createOrGetActiveGame = async (req, res) => {
   try {
@@ -54,6 +58,8 @@ const startGame = async (game) => {
     game.status = 'in_progress';
     await game.save();
     io.to(game.id).emit('startGame', { message: 'El juego va a comenzar', roomID: game.id });
+
+    sendBallots(game.id);
   } catch (error) {
     console.error('Error al iniciar el juego:', error);
   }
@@ -66,5 +72,43 @@ export const deleteAllGames = async (req, res) => {
     res.status(200).json({ message: 'Todos los juegos y jugadores han sido eliminados' });
   } catch (error) {
     res.status(500).json({ message: 'Error al eliminar los juegos y jugadores', error });
+  }
+};
+
+const sendBallots = (gameID) => {
+  let sequence = 1;
+  sentBallots[gameID] = new Set(); // Inicializar el conjunto de balotas enviadas para el juego
+
+  const interval = setInterval(async () => {
+    if (sentBallots[gameID].size >= 75) {
+      clearInterval(interval);
+      return;
+    }
+    try {
+      let number;
+      do {
+        number = Math.floor(Math.random() * 75) + 1; // Generar un número aleatorio entre 1 y 75
+      } while (sentBallots[gameID].has(number)); // Repetir hasta obtener un número que no haya sido enviado
+
+      sentBallots[gameID].add(number); // Agregar el número al conjunto de balotas enviadas
+
+      const ballot = await Ballot.create({ game_id: gameID, number, sequence, extracted_at: new Date() });
+      io.emit('newBallot', { number: ballot.number, sequence: ballot.sequence });
+
+      sequence += 1;
+    } catch (error) {
+      console.error('Error al enviar ballot:', error);
+      clearInterval(interval);
+    }
+  }, 5000); // Enviar un ballot cada 5 segundos
+
+  ballotIntervals[gameID] = interval;
+};
+
+export const stopSendingBallots = (gameID) => {
+  const interval = ballotIntervals[gameID];
+  if (interval) {
+    clearInterval(interval);
+    delete ballotIntervals[gameID];
   }
 };

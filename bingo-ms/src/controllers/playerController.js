@@ -4,6 +4,7 @@ import Player from '../models/player.js';
 import BingoCard from '../models/bingoCard.js';
 import { sendEventToAll } from '../sockets/websockets.js';
 import { Op } from 'sequelize';
+import { stopSendingBallots } from './gameController.js';
 
 class PlayerController {
   generateBingoCard() {
@@ -112,12 +113,15 @@ class PlayerController {
       socket.emit('error', { message: 'Error al salir del juego', error });
     }
   }
+  
   async finishGame(game, winner_id) {
     try {
       game.status = 'finished';
       game.winner_id = winner_id;
       game.ended_at = new Date();
       await game.save();
+
+      stopSendingBallots(game.id);
     } catch (error) {
       console.error('Error al finalizar el juego:', error);
     }
