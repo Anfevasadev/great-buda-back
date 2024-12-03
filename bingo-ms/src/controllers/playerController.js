@@ -1,7 +1,9 @@
 import jwt from 'jsonwebtoken';
 import Game from '../models/game.js';
 import Player from '../models/player.js';
-import BingoCard from '../models/bingoCard.js'; // Asegúrate de tener el modelo BingoCard
+import BingoCard from '../models/bingoCard.js'; 
+import { sendEventToAll } from '../sockets/websockets.js';
+import { Op } from 'sequelize';
 
 class PlayerController {
   generateBingoCard() {
@@ -75,6 +77,54 @@ class PlayerController {
       socket.emit('error', { message: 'Error al unirse al juego', error });
     }
   }
+
+  async playerLeft (socket, { userId, gameId }) {
+    
+    try {
+      if (!userId) {
+        socket.emit('error', { message: 'User id no proporcionado' });
+        return;
+      }
+
+      const player = await Player.findOne({ where: { game_id: gameId, user_id:userId } });
+      if (!player) {
+        socket.emit('error', { message: 'Jugador no encontrado en el juego' });
+        return;
+      }
+      player.is_disqualified = true;
+      await player.save();
+
+      const game = await Game.findOne({ where: { id: gameId } });
+      const playersInGame = await Player.count({ where: { game_id: gameId, is_disqualified: {[Op.not]: true} } });
+      game.active_players = playersInGame;
+      await game.save();
+      
+      sendEventToAll('updatePlayers', { roomID: game.id, active_players: game.active_players });
+
+      if (game.active_players === 1) {
+        const winner = await Player.findOne({ where: { game_id: gameId, user_id: { [Op.not]: userId } } });
+        console.log('winner', winner);
+        
+        await this.finishGame(game, winner.user_id);
+        sendEventToAll('gameFinished', { message: 'El juego ha terminado', winner_id: winner.user_id });
+      }
+
+    } catch (error) {
+      console.error('Error al salir del juego:', error);
+      socket.emit('error', { message: 'Error al salir del juego', error });
+    }
+  }
+  async finishGame(game, winner_id) {
+    try {
+      game.status = 'finished';
+      game.winner_id = winner_id;
+      game.ended_at = new Date();
+      await game.save();
+    } catch (error) {
+      console.error('Error al finalizar el juego:', error);
+    }
+  }
+
 }
 
 export default new PlayerController();

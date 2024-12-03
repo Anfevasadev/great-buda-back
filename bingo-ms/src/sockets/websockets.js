@@ -16,11 +16,16 @@ function setupWebSocket(server) {
     // Manejador para el evento 'joinRoom'
     socket.on('joinRoom', (data) => playerController.joinRoom(socket, data));
 
+    socket.on('playerLeft', (data) => playerController.playerLeft (socket, data));
+
     // Agregar más manejadores de eventos aquí
   });
 
   return io;
 }
+function sendEventToAll(event, data) {
+  io.emit(event, data);
+}
 
-export { io };
+export { io, sendEventToAll };
 export default setupWebSocket;
