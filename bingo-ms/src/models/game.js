@@ -34,6 +34,8 @@ const Game = sequelize.define('Game', {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+}, {
+  tableName: 'games'
 });
 
 try {

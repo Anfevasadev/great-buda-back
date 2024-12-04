@@ -36,6 +36,8 @@ const Player = sequelize.define('Player', {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
   },
+}, {
+  tableName: 'players',
 });
 
 try {

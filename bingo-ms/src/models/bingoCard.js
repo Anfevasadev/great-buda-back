@@ -20,14 +20,16 @@ const BingoCard = sequelize.define('BingoCard', {
   numbers: {
     type: DataTypes.JSONB,
     allowNull: false
-  }
+  },
+}, {
+  tableName: 'bingo_cards'
 });
 
 try {
-    await sequelize.sync();
-    console.log('Modelo de bingoCard sincronizado con la base de datos.');
-  } catch (error) {
-    console.error('Error al sincronizar el modelo:', error);
-  }
+  await sequelize.sync();
+  console.log('Modelo de bingoCard sincronizado con la base de datos.');
+} catch (error) {
+  console.error('Error al sincronizar el modelo:', error);
+}
 
 export default BingoCard;
