@@ -1,7 +1,10 @@
+import { Op } from 'sequelize';
 import Ballot from '../models/ballot.js';
+import BingoCard from '../models/bingoCard.js';
 import Game from '../models/game.js';
 import Player from '../models/player.js';
-import { io } from '../sockets/websockets.js'; 
+import { io, sendEventToAll } from '../sockets/websockets.js'; 
+import { validateBingo } from '../validators/bingoValidators.js';
 
 const MIN_WAIT_TIME = 5; // Tiempo mínimo de espera en segundos
 const MAX_WAIT_TIME = 20; // Tiempo máximo de espera en segundos
@@ -112,3 +115,63 @@ export const stopSendingBallots = (gameID) => {
     delete ballotIntervals[gameID];
   }
 };
+
+export const handleBingoEvent = async (socket, { userId, gameId }) => {
+  try {
+    const player = await Player.findOne({ where: { user_id: userId, game_id: gameId } });
+    if (!player) {
+      socket.emit('error', { message: 'Jugador no encontrado' });
+      return;
+    }
+
+    const bingoCard = await BingoCard.findOne({ where: { player_id: player.id } });
+    if (!bingoCard) {
+      socket.emit('error', { message: 'Bingo card no encontrada' });
+      return;
+    }
+
+    const card = bingoCard.numbers;
+
+    const ballots = await Ballot.findAll({ where: { game_id: gameId } });
+    const drawnNumbers = new Set(ballots.map(ballot => ballot.number));
+
+    if (validateBingo(card, drawnNumbers)) {
+      await finishGame(await Game.findByPk(gameId), userId);
+      io.to(gameId).emit('bingoWinner', { message: '¡Bingo!', winner_id: userId });
+    } else {
+      socket.emit('falseBingo', { message: 'Bingo no válido, no cumple con ninguno de los patrones para ganar' });
+      player.disqualified = true;
+      await player.save();
+      
+      const game = await Game.findOne({ where: { id: gameId } });
+      const playersInGame = await Player.count({ where: { game_id: gameId, is_disqualified: { [Op.not]: true } } });
+      game.active_players = playersInGame;
+      await game.save();
+
+      sendEventToAll('updatePlayers', { roomID: game.id, active_players: game.active_players });
+
+      if (game.active_players === 1) {
+        const winner = await Player.findOne({ where: { game_id: gameId, user_id: { [Op.not]: userId } } });
+        await finishGame(game, winner.user_id);
+        sendEventToAll('gameFinished', { message: 'Los demás jugadores se retiraron', winner_id: winner.user_id });
+      }
+
+    }
+  } catch (error) {
+    console.error('Error al manejar el evento de bingo:', error);
+    socket.emit('error', { message: 'Error al manejar el evento de bingo', error });
+  }
+};
+
+export const finishGame = async (game, winner_id) => {
+  try {
+    game.status = 'finished';
+    game.winner_id = winner_id;
+    game.ended_at = new Date();
+    await game.save();
+
+    stopSendingBallots(game.id);
+  } catch (error) {
+    console.error('Error al finalizar el juego:', error);
+  }
+}

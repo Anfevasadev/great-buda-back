@@ -4,7 +4,7 @@ import Player from '../models/player.js';
 import BingoCard from '../models/bingoCard.js';
 import { sendEventToAll } from '../sockets/websockets.js';
 import { Op } from 'sequelize';
-import { stopSendingBallots } from './gameController.js';
+import { finishGame, stopSendingBallots } from './gameController.js';
 
 class PlayerController {
   generateBingoCard() {
@@ -104,7 +104,7 @@ class PlayerController {
 
       if (game.active_players === 1) {
         const winner = await Player.findOne({ where: { game_id: gameId, user_id: { [Op.not]: userId } } });
-        await this.finishGame(game, winner.user_id);
+        await finishGame(game, winner.user_id);
         sendEventToAll('gameFinished', { message: 'Los demás jugadores se retiraron', winner_id: winner.user_id });
       }
 
@@ -113,20 +113,6 @@ class PlayerController {
       socket.emit('error', { message: 'Error al salir del juego', error });
     }
   }
-  
-  async finishGame(game, winner_id) {
-    try {
-      game.status = 'finished';
-      game.winner_id = winner_id;
-      game.ended_at = new Date();
-      await game.save();
-
-      stopSendingBallots(game.id);
-    } catch (error) {
-      console.error('Error al finalizar el juego:', error);
-    }
-  }
-
 }
 
 export default new PlayerController();

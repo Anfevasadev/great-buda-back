@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import playerController from '../controllers/playerController.js';
+import { handleBingoEvent } from '../controllers/gameController.js';
 
 let io;
 
@@ -13,12 +14,11 @@ function setupWebSocket(server) {
   io.on('connection', (socket) => {
     console.log('Nuevo cliente conectado:', socket.id);
 
-    // Manejador para el evento 'joinRoom'
     socket.on('joinRoom', (data) => playerController.joinRoom(socket, data));
 
     socket.on('playerLeft', (data) => playerController.playerLeft (socket, data));
 
-    // Agregar más manejadores de eventos aquí
+    socket.on('bingo', (data) => handleBingoEvent(socket, data));
   });
 
   return io;
