@@ -6,8 +6,8 @@ import Player from '../models/player.js';
 import { io, sendEventToAll } from '../sockets/websockets.js'; 
 import { validateBingo } from '../validators/bingoValidators.js';
 
-const MIN_WAIT_TIME = 5; // Tiempo mínimo de espera en segundos
-const MAX_WAIT_TIME = 20; // Tiempo máximo de espera en segundos
+const MIN_WAIT_TIME = 30; // Tiempo mínimo de espera en segundos
+const MAX_WAIT_TIME = 60; // Tiempo máximo de espera en segundos
 
 const ballotIntervals = {};
 const sentBallots = {};
